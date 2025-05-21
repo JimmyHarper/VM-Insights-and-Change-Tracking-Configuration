@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "LOCATION": {
+      "value": "AZURE_REGION",
+      "type": "String"
+    },
+    "LOG_ANALYTICS_WORKSPACE": {
+      "value": "LOG_ANALYTICS_WORKSPACE_ID",
+      "type": "String"
+    },
+    "RESOURCE_ID_CONTAINS": {
+      "value": "",
+      "type": "String"
+    },
+    "RESOURCE_ID_DOES_NOT_CONTAIN": {
+      "value": "RESOURCE ID EXCLUSION STRING",
+      "type": "String"
+    },
+    "SERVER_NAME_CONTAINS": {
+      "value": "",
+      "type": "String"
+    }
+  }
+}

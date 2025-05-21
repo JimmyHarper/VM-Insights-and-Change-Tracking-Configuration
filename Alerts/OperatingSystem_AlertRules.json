@@ -1,0 +1,274 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "LOCATION": {
+      "defaultValue": "",
+      "type": "String"
+    },
+    "LOG_ANALYTICS_WORKSPACE": {
+      "defaultValue": "",
+      "type": "String"
+    },
+    "ALERT_INCLUDE_FILTER_RESOURCE_ID": {
+      "defaultValue": "",
+      "type": "String"
+    },
+    "ALERT_EXCLUDE_FILTER_RESOURCE_ID": {
+      "defaultValue": "RESOURCE ID EXCLUSION STRING",
+      "type": "String"
+    },
+    "ALERT_INCLUDE_FILTER_SERVERNAME": {
+      "defaultValue": "",
+      "type": "String"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "microsoft.insights/scheduledqueryrules",
+      "apiVersion": "2021-08-01",
+      "name": "Windows Server - Essential Service Stopped",
+      "location": "[parameters('LOCATION')]",
+      "properties": {
+        "displayName": "Windows Server - Essential Service Stopped",
+        "description": "An essential Windows Server service has stopped",
+        "severity": 1,
+        "enabled": true,
+        "evaluationFrequency": "PT5M",
+        "scopes": [
+          "[parameters('LOG_ANALYTICS_WORKSPACE')]"
+        ],
+        "targetResourceTypes": [
+          "Microsoft.OperationalInsights/workspaces"
+        ],
+        "windowSize": "P2D",
+        "criteria": {
+          "allOf": [
+            {
+              "query": "[concat('ConfigurationData\n| where Computer contains \"',parameters('ALERT_INCLUDE_FILTER_SERVERNAME'),'\"\n| where _ResourceId contains \"',parameters('ALERT_INCLUDE_FILTER_RESOURCE_ID'),'\"\n| where _ResourceId !contains \"',parameters('ALERT_EXCLUDE_FILTER_RESOURCE_ID'),'\"\n| where ConfigDataType == \"WindowsServices\"\n| where SvcStartupType == \"Auto\"\n| where SvcName in \n(\"Dhcp\",\n\"Dnscache\",\n\"PlugPlay\",\n\"RpcSs\",\n\"LanmanServer\",\n\"lmhosts\",\n\"EventLog\",\n\"mpssvc\",\n\"WinRM\",\n\"LanmanWorkstation\")\n| extend State = iif(SvcState == \"Running\",1,0)\n| summarize arg_max(TimeGenerated,State,SvcState) by Computer,SvcDisplayName, _ResourceId\n')]",
+              "timeAggregation": "Total",
+              "metricMeasureColumn": "State",
+              "dimensions": [
+                {
+                  "name": "SvcDisplayName",
+                  "operator": "Include",
+                  "values": [
+                    "*"
+                  ]
+                },
+                {
+                  "name": "SvcState",
+                  "operator": "Include",
+                  "values": [
+                    "*"
+                  ]
+                }
+              ],
+              "resourceIdColumn": "_ResourceId",
+              "operator": "Equal",
+              "threshold": 0,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 1,
+                "minFailingPeriodsToAlert": 1
+              }
+            }
+          ]
+        },
+        "autoMitigate": true
+      }
+    },
+    {
+      "type": "microsoft.insights/scheduledqueryrules",
+      "apiVersion": "2022-06-15",
+      "name": "VM Performance - High CPU",
+      "location": "[parameters('LOCATION')]",
+      "properties": {
+        "displayName": "VM Performance - High CPU",
+        "description": "CPU is over 95% for 30 minutes",
+        "severity": 2,
+        "enabled": true,
+        "evaluationFrequency": "PT10M",
+        "scopes": [
+          "[parameters('LOG_ANALYTICS_WORKSPACE')]"
+        ],
+        "targetResourceTypes": [
+          "Microsoft.OperationalInsights/workspaces"
+        ],
+        "windowSize": "PT5M",
+        "criteria": {
+          "allOf": [
+            {
+              "query": "[concat('InsightsMetrics\n| where Computer contains \"',parameters('ALERT_INCLUDE_FILTER_SERVERNAME'),'\"\n| where _ResourceId contains \"',parameters('ALERT_INCLUDE_FILTER_RESOURCE_ID'),'\"\n| where _ResourceId !contains \"',parameters('ALERT_EXCLUDE_FILTER_RESOURCE_ID'),'\"\n| where Namespace == \"Processor\" and Name == \"UtilizationPercentage\"')]",
+              "timeAggregation": "Average",
+              "metricMeasureColumn": "Val",
+              "dimensions": [
+                {
+                  "name": "Computer",
+                  "operator": "Include",
+                  "values": [
+                    "*"
+                  ]
+                }
+              ],
+              "resourceIdColumn": "_ResourceId",
+              "operator": "GreaterThan",
+              "threshold": 95,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 6,
+                "minFailingPeriodsToAlert": 6
+              }
+            }
+          ]
+        },
+        "autoMitigate": true
+
+      }
+    },
+    {
+      "type": "microsoft.insights/scheduledqueryrules",
+      "apiVersion": "2022-06-15",
+      "name": "VM Performance - Low Memory",
+      "location": "[parameters('LOCATION')]",
+      "properties": {
+        "displayName": "VM Performance - Low Memory",
+        "description": "VM has less than 500mb memory for 30 minutes",
+        "severity": 2,
+        "enabled": true,
+        "evaluationFrequency": "PT10M",
+        "scopes": [
+          "[parameters('LOG_ANALYTICS_WORKSPACE')]"
+        ],
+        "targetResourceTypes": [
+          "Microsoft.OperationalInsights/workspaces"
+        ],
+        "windowSize": "PT5M",
+        "criteria": {
+          "allOf": [
+            {
+              "query": "[concat('InsightsMetrics\n| where Computer contains \"',parameters('ALERT_INCLUDE_FILTER_SERVERNAME'),'\"\n| where _ResourceId contains \"',parameters('ALERT_INCLUDE_FILTER_RESOURCE_ID'),'\"\n| where _ResourceId !contains \"',parameters('ALERT_EXCLUDE_FILTER_RESOURCE_ID'),'\"\n| where Origin == \"vm.azm.ms\"\n| where Namespace == \"Memory\" and Name == \"AvailableMB\"')]",
+              "timeAggregation": "Average",
+              "metricMeasureColumn": "Val",
+              "dimensions": [
+                {
+                  "name": "Computer",
+                  "operator": "Include",
+                  "values": [
+                    "*"
+                  ]
+                }
+              ],
+              "resourceIdColumn": "_ResourceId",
+              "operator": "LessThan",
+              "threshold": 500,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 6,
+                "minFailingPeriodsToAlert": 6
+              }
+            }
+          ]
+        },
+        "autoMitigate": true
+      }
+    },
+    {
+      "type": "microsoft.insights/scheduledqueryrules",
+      "apiVersion": "2022-06-15",
+      "name": "VM Availability - Low Disk Space",
+      "location": "[parameters('LOCATION')]",
+      "properties": {
+        "displayName": "VM Availability - Low Disk Space",
+        "description": "This server has a disk with less than 1gb free space",
+        "severity": 2,
+        "enabled": true,
+        "evaluationFrequency": "PT15M",
+        "scopes": [
+          "[parameters('LOG_ANALYTICS_WORKSPACE')]"
+        ],
+        "targetResourceTypes": [
+          "Microsoft.OperationalInsights/workspaces"
+        ],
+        "windowSize": "PT15M",
+        "criteria": {
+          "allOf": [
+            {
+              "query": "[concat('InsightsMetrics\n| where Computer contains \"',parameters('ALERT_INCLUDE_FILTER_SERVERNAME'),'\"\n| where _ResourceId contains \"',parameters('ALERT_INCLUDE_FILTER_RESOURCE_ID'),'\"\n| where _ResourceId !contains \"',parameters('ALERT_EXCLUDE_FILTER_RESOURCE_ID'),'\"\n| where Origin == \"vm.azm.ms\"\n| where Namespace == \"LogicalDisk\" and Name == \"FreeSpaceMB\"\n| extend Disk=tostring(todynamic(Tags)[\"vm.azm.ms/mountId\"])\n| where Disk !contains \"boot\"\n| summarize AggregatedValue = avg(Val) by bin(TimeGenerated, 15m), Computer, _ResourceId, Disk')]",
+              "timeAggregation": "Average",
+              "metricMeasureColumn": "AggregatedValue",
+              "dimensions": [
+                {
+                  "name": "Computer",
+                  "operator": "Include",
+                  "values": [
+                    "*"
+                  ]
+                },
+                {
+                  "name": "Disk",
+                  "operator": "Include",
+                  "values": [
+                    "*"
+                  ]
+                }
+              ],
+              "resourceIdColumn": "_ResourceId",
+              "operator": "LessThanOrEqual",
+              "threshold": 1000,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 2,
+                "minFailingPeriodsToAlert": 2
+              }
+            }
+          ]
+        },
+        "autoMitigate": true
+      }
+    },
+    {
+      "type": "microsoft.insights/scheduledqueryrules",
+      "apiVersion": "2022-06-15",
+      "name": "VM Availability - Server Offline",
+      "location": "[parameters('LOCATION')]",
+      "properties": {
+        "displayName": "VM Availability - Server Offline",
+        "description": "VM is not connecting to Azure Log Analytics",
+        "severity": 1,
+        "enabled": true,
+        "evaluationFrequency": "PT5M",
+        "scopes": [
+          "[parameters('LOG_ANALYTICS_WORKSPACE')]"
+        ],
+        "targetResourceTypes": [
+          "Microsoft.OperationalInsights/workspaces"
+        ],
+        "windowSize": "P2D",
+        "criteria": {
+          "allOf": [
+            {
+              "query": "[concat('Heartbeat\n| where Computer contains \"',parameters('ALERT_INCLUDE_FILTER_SERVERNAME'),'\"\n| where _ResourceId contains \"',parameters('ALERT_INCLUDE_FILTER_RESOURCE_ID'),'\"\n| where _ResourceId !contains \"',parameters('ALERT_EXCLUDE_FILTER_RESOURCE_ID'),'\"\n| summarize TimeGenerated=max(TimeGenerated) by Computer, _ResourceId\n| extend Duration = datetime_diff(\"minute\", now(), TimeGenerated)\n| summarize AggregatedValue = min(Duration) by Computer, bin(TimeGenerated, 5m), _ResourceId\n')]",
+              "timeAggregation": "Average",
+              "metricMeasureColumn": "AggregatedValue",
+              "dimensions": [
+                {
+                  "name": "Computer",
+                  "operator": "Include",
+                  "values": [
+                    "*"
+                  ]
+                }
+              ],
+              "resourceIdColumn": "_ResourceId",
+              "operator": "GreaterThan",
+              "threshold": 5,
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 1,
+                "minFailingPeriodsToAlert": 1
+              }
+            }
+          ]
+        },
+        "autoMitigate": true
+      }
+    }
+  ]
+}

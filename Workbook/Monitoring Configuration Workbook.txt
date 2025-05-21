@@ -1,0 +1,1995 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 11,
+            "content": {
+              "version": "LinkItem/1.0",
+              "style": "tabs",
+              "links": [
+                {
+                  "id": "a58c3ea1-76a0-46aa-bd18-14d3084875b6",
+                  "cellValue": "selectedTab",
+                  "linkTarget": "parameter",
+                  "linkLabel": "Overview",
+                  "subTarget": "Overview",
+                  "style": "link"
+                },
+                {
+                  "id": "fe143a7a-5ec1-4a26-869b-7c7f4a0ba6ea",
+                  "cellValue": "selectedTab",
+                  "linkTarget": "parameter",
+                  "linkLabel": "Details",
+                  "subTarget": "Details-NEW",
+                  "style": "link"
+                }
+              ]
+            },
+            "name": "links - 10"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": [
+                {
+                  "type": 12,
+                  "content": {
+                    "version": "NotebookGroup/1.0",
+                    "groupType": "editable",
+                    "title": "Monitoring Policy",
+                    "items": [
+                      {
+                        "type": 9,
+                        "content": {
+                          "version": "KqlParameterItem/1.0",
+                          "crossComponentResources": [
+                            "{subscription}"
+                          ],
+                          "parameters": [
+                            {
+                              "id": "7aae2c7c-6b5a-4a12-9c88-eefe7900e610",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "subscription",
+                              "label": "Subscription",
+                              "type": 6,
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "includeAll": true
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "value": "/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40"
+                            },
+                            {
+                              "id": "40f5c83d-1a82-4186-83f9-934e125bef19",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "PolicyAssignments",
+                              "label": "Policy Assignments",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "policyresources\r\n| where type == \"microsoft.authorization/policyassignments\"\r\n| extend DisplayName = tostring(properties.displayName)\r\n| extend policyDefinitionId = tostring(properties.policyDefinitionId)\r\n| project name,DisplayName,policyDefinitionId\r\n| join kind=leftouter (\r\npolicyresources\r\n| where type in (\"microsoft.authorization/policydefinitions\",\"microsoft.authorization/policysetdefinitions\")\r\n| extend PolicyDefinitionName = tostring(properties.displayName)\r\n| extend name = tostring(name)\r\n| extend Category = properties.metadata.category\r\n| project PolicyDefinitionName,Category,name,id\r\n) on $left.policyDefinitionId == $right.id\r\n| where Category == \"Monitoring\"\r\n| project name,DisplayName\r\n| order by DisplayName asc",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            }
+                          ],
+                          "style": "pills",
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources"
+                        },
+                        "name": "parameters - 3 - Copy - Copy"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "policyresources\r\n| where type =~ 'Microsoft.PolicyInsights/PolicyStates'\r\n| extend complianceState = tostring(properties.complianceState)\r\n| extend\r\n\tresourceId = tostring(properties.resourceId),\r\n\tpolicyAssignmentId = tostring(properties.policyAssignmentId),\r\n\tpolicyAssignmentScope = tostring(properties.policyAssignmentScope),\r\n\tpolicyAssignmentName = tostring(properties.policyAssignmentName),\r\n\tpolicyDefinitionId = tostring(properties.policyDefinitionId),\r\n\tpolicyDefinitionReferenceId = tostring(properties.policyDefinitionReferenceId),\r\n\tstateWeight = iff(complianceState == 'NonCompliant', int(300), iff(complianceState == 'Compliant', int(200), iff(complianceState == 'Conflict', int(100), iff(complianceState == 'Exempt', int(50), int(0)))))\r\n| summarize max(stateWeight) by resourceId, policyAssignmentId, policyAssignmentScope, policyAssignmentName\r\n| summarize counts = count() by policyAssignmentId, policyAssignmentScope, max_stateWeight, policyAssignmentName\r\n| summarize overallStateWeight = max(max_stateWeight),\r\nnonCompliantCount = sumif(counts, max_stateWeight == 300),\r\ncompliantCount = sumif(counts, max_stateWeight == 200),\r\nconflictCount = sumif(counts, max_stateWeight == 100),\r\nexemptCount = sumif(counts, max_stateWeight == 50) by policyAssignmentId, policyAssignmentScope, policyAssignmentName\r\n| extend totalResources = todouble(nonCompliantCount + compliantCount + conflictCount + exemptCount)\r\n| extend compliancePercentage = iff(totalResources == 0, todouble(100), 100 * todouble(compliantCount + exemptCount) / totalResources)\r\n| project \r\ncomplianceState = iff(overallStateWeight == 300, 'noncompliant', iff(overallStateWeight == 200, 'compliant', iff(overallStateWeight == 100, 'conflict', iff(overallStateWeight == 50, 'exempt', 'notstarted')))),\r\npolicyAssignmentName, scope = policyAssignmentScope,\r\ncompliancePercentage,\r\ncompliantCount,\r\nnonCompliantCount,\r\nconflictCount,\r\nexemptCount\r\n| where policyAssignmentName in ({PolicyAssignments})\r\n| join kind=leftouter (\r\npolicyresources\r\n| where type == \"microsoft.authorization/policyassignments\"\r\n| extend name=tostring(name)\r\n| extend DisplayName = tostring(properties.displayName)\r\n| project name,DisplayName\r\n) on $left.policyAssignmentName == $right.name\r\n| project complianceState,DisplayName,scope,compliancePercentage,compliantCount,nonCompliantCount,conflictCount,exemptCount\r\n\r\n",
+                          "size": 3,
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources",
+                          "crossComponentResources": [
+                            "{subscription}"
+                          ],
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "complianceState",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "compliant",
+                                      "representation": "success",
+                                      "text": "[\"DisplayName\"]"
+                                    },
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "noncompliant",
+                                      "representation": "4",
+                                      "text": "[\"DisplayName\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "unknown",
+                                      "text": "[\"DisplayName\"]"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "47.4286ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "DisplayName",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "compliancePercentage",
+                                "formatter": 4,
+                                "formatOptions": {
+                                  "min": 0,
+                                  "max": 100,
+                                  "palette": "redGreen",
+                                  "customColumnWidthSetting": "143px"
+                                },
+                                "numberFormat": {
+                                  "unit": 1,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "policyAssignmentName",
+                                "formatter": 5
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "complianceState",
+                                "label": "Policy Assignment"
+                              },
+                              {
+                                "columnId": "DisplayName",
+                                "label": "DisplayName"
+                              },
+                              {
+                                "columnId": "scope",
+                                "label": "Scope"
+                              },
+                              {
+                                "columnId": "compliancePercentage",
+                                "label": "Compliance"
+                              },
+                              {
+                                "columnId": "compliantCount",
+                                "label": "Compliant"
+                              },
+                              {
+                                "columnId": "nonCompliantCount",
+                                "label": "Non-Compliant"
+                              },
+                              {
+                                "columnId": "conflictCount",
+                                "label": "Conflict"
+                              },
+                              {
+                                "columnId": "exemptCount",
+                                "label": "Exempt"
+                              }
+                            ]
+                          }
+                        },
+                        "name": "query - 4"
+                      }
+                    ]
+                  },
+                  "customWidth": "90",
+                  "name": "Monitoring Configuration Group",
+                  "styleSettings": {
+                    "showBorder": true
+                  }
+                },
+                {
+                  "type": 12,
+                  "content": {
+                    "version": "NotebookGroup/1.0",
+                    "groupType": "editable",
+                    "title": "Monitoring Data",
+                    "items": [
+                      {
+                        "type": 9,
+                        "content": {
+                          "version": "KqlParameterItem/1.0",
+                          "crossComponentResources": [
+                            "{subscription}"
+                          ],
+                          "parameters": [
+                            {
+                              "id": "d034ef1f-1b9d-4e40-b40b-51bbcf47c348",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "subscription",
+                              "label": "Subscription",
+                              "type": 6,
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "includeAll": true
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "value": "/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40"
+                            },
+                            {
+                              "id": "1fac4c70-2a0f-4810-ab8a-868b75209327",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "workspace",
+                              "label": "Workspace",
+                              "type": 5,
+                              "isRequired": true,
+                              "query": "resources\r\n| where type =~ 'microsoft.operationalinsights/workspaces'\r\n| project value = id, label = name",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "showDefault": false
+                              },
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": "/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40/resourceGroups/ALA-RG/providers/Microsoft.OperationalInsights/workspaces/ALA-MAIN"
+                            },
+                            {
+                              "id": "eb8bac5b-f20f-4ca1-a79a-5a691dba1463",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ResourceType",
+                              "label": "Resource Type",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "jsonData": " [\"Virtual Machine\", \"VM Scale Set\",\"Azure Arc Machine\"]",
+                              "defaultValue": "value::all",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "ede20336-9383-4814-9a16-7841b7915c04",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "OSType",
+                              "label": "OS Type",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where type == \"microsoft.compute/virtualmachines\"\r\n| extend OSType = tolower(tostring(properties.storageProfile.osDisk.osType))\r\n| union\r\n(\r\nresources\r\n| where type == \"microsoft.hybridcompute/machines\"\r\n| extend OSType = tolower(tostring(properties.osType))\r\n)\r\n| union \r\n(\r\nresources\r\n| where type == \"microsoft.compute/virtualmachinescalesets\"\r\n| extend OSType = tolower(tostring(properties.virtualMachineProfile.storageProfile.osDisk.osType))\r\n) \r\n|distinct OSType\r\n| extend OSType = case(OSType=~\"windows\",\"Windows\",(case(OSType=~\"linux\",\"Linux\",OSType)))\r\n",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "c67fa407-70bb-4dd9-880b-9af3e90e97fb",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ResourceGroup",
+                              "label": "Resource Group",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where type in (\"microsoft.compute/virtualmachines\",\"microsoft.compute/virtualmachinescalesets\",\"microsoft.hybridcompute/machines\")\r\n| distinct resourceGroup",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "resourceTypeFilter": {
+                                  "microsoft.resources/resourcegroups": true
+                                },
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "91166e8d-2338-4ab8-bceb-080c3cf32a45",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ARGQuery",
+                              "type": 1,
+                              "query": "//Virtual Machines\r\nresources\r\n| where type == \"microsoft.compute/virtualmachines\"\r\n| extend PowerStatus = tostring(properties.extended.instanceView.powerState.displayStatus),\r\n\tOSType = tostring(properties.storageProfile.osDisk.osType),\r\n    IdentityType = identity.type,\r\n    ComputerName = tolower(name)\r\n| extend ResourceType=\"Virtual Machine\"\r\n| extend patchSettings = iff(properties.storageProfile.osDisk.osType =~ \"windows\", properties.osProfile.windowsConfiguration.patchSettings, properties.osProfile.linuxConfiguration.patchSettings)\r\n| extend patchMode = patchSettings.patchMode\r\n| extend patchMode = case(patchMode =~ 'AutomaticByOS', 'Windows Automatic Updates', patchMode =~ 'ImageDefault', 'Image default', (patchMode =~ 'AutomaticByPlatform' and patchSettings.automaticByPlatformSettings.bypassPlatformSafetyChecksOnUserSchedule == true), 'Customer Managed Schedules', patchMode =~ 'AutomaticByPlatform', 'Azure Managed - Safe Deployment', patchMode)\r\n| extend patchMode=tostring(patchMode)\r\n| extend assessmentMode = tostring(patchSettings.assessmentMode)\r\n| project ComputerName, id, location, resourceGroup, PowerStatus, OSType, IdentityType,ResourceType,patchMode,assessmentMode\r\n    //Virtual Machines - Installed Extensions\r\n    | join kind=leftouter (\r\n    resources\r\n    | where type contains \"microsoft.compute/virtualmachines/extensions\"\r\n    | extend publisher = properties.publisher\r\n    | parse id with * \"/virtualMachines/\" ComputerName \"/\" *\r\n    | extend extensionType = properties.type, \r\n        status = tostring(properties.provisioningState),\r\n        version = properties.typeHandlerVersion,\r\n        ComputerName = tolower(ComputerName)\r\n    | where status in (\"Succeeded\",\"Updating\")\r\n    | summarize InstalledExtensions = make_list(publisher) by ComputerName\r\n    ) on ComputerName\r\n| union\r\n(\r\n//VM Scale Sets\r\nresources\r\n| where type == \"microsoft.compute/virtualmachinescalesets\"\r\n| extend ResourceType=\"VM Scale Set\"\r\n| extend PowerStatus = tostring(properties.extended.instanceView.powerState.displayStatus),\r\n    OSType = tostring(properties.virtualMachineProfile.storageProfile.osDisk.osType),\r\n    IdentityType = identity.type,\r\n    ComputerName = tolower(name)\r\n| project ComputerName, id, location, resourceGroup, PowerStatus, OSType, IdentityType,ResourceType\r\n    //VM Scale Sets - Installed Extensions\r\n    | join kind=leftouter(\r\n    resources\r\n    | where type == \"microsoft.compute/virtualmachinescalesets\"\r\n    | extend ComputerName = tolower(name)\r\n    | mv-expand extensionProfile = properties.virtualMachineProfile.extensionProfile.extensions\r\n    | project ComputerName, extensionName = extensionProfile.properties.publisher\r\n    | extend extensionName=tostring(extensionName)\r\n    | summarize InstalledExtensions = make_list(extensionName) by ComputerName\r\n    ) on ComputerName\r\n)\r\n| union\r\n(\r\n//Azure Arc machines\r\nresources\r\n| where type == \"microsoft.hybridcompute/machines\"\r\n| extend PowerStatus = tostring(properties.status),\r\n\tOSType = tostring(properties.osType),\r\n    IdentityType = identity.type,\r\n    ComputerName = tolower(name)\r\n| extend ResourceType=\"Azure Arc Machine\"\r\n| extend patchSettings = properties.osProfile.windowsConfiguration.patchSettings\r\n| extend assessmentMode = tostring(patchSettings.assessmentMode)\r\n| project ComputerName, id, location, resourceGroup, PowerStatus, OSType, IdentityType,ResourceType,assessmentMode\r\n    //Azure Arc Machines - Installed Extensions\r\n    | join kind = leftouter\r\n    (\r\n    resources\r\n    | where type contains \"microsoft.hybridcompute/machines/extensions\"\r\n    | extend publisher = properties.publisher\r\n        | parse id with * \"/Microsoft.HybridCompute/machines/\" ComputerName \"/\" *\r\n        | extend extensionType = properties.type, \r\n            status = tostring(properties.provisioningState),\r\n            version = properties.typeHandlerVersion,\r\n            ComputerName = tolower(ComputerName)\r\n        | where status in (\"Succeeded\",\"Updating\")\r\n        | summarize InstalledExtensions = make_list(publisher) by ComputerName\r\n    ) on ComputerName\r\n    )\r\n    | extend AMAStatus = case(InstalledExtensions contains \"Microsoft.Azure.Monitor\", \"Installed\", \"Not Installed\")\r\n    | extend MDEStatus = case(InstalledExtensions contains \"Microsoft.Azure.AzureDefenderForServers\", \"Installed\", \"Not Installed\")\r\n    | extend CTStatus = case(InstalledExtensions contains \"Microsoft.Azure.ChangeTrackingAndInventory\", \"Installed\", \"Not Installed\")\r\n    | extend MMAStatus = case(InstalledExtensions contains \"Microsoft.EnterpriseCloud.Monitoring\", \"Installed\", \"Not Installed\")\r\n    | extend DAStatus = case(InstalledExtensions contains \"Microsoft.Azure.Monitoring.DependencyAgent\", \"Installed\", \"Not Installed\")\r\n| extend OSType = case(OSType=~\"windows\",\"Windows\",(case(OSType=~\"linux\",\"Linux\",OSType)))\r\n| project ComputerName, ResourceID = tolower(id),ResourceType,location, resourceGroup, OSType, Status=PowerStatus,AMAStatus,MMAStatus,MDEStatus, CTStatus,DAStatus,patchMode,assessmentMode\r\n| extend ResourceType_OS=strcat(OSType,\" \",ResourceType)\r\n//check to see if update manager has run in last 30 days\r\n| join kind=leftouter\r\n(\r\nmaintenanceresources\r\n| where ['type'] == \"microsoft.maintenance/applyupdates\"\r\n| where properties.maintenanceScope == \"InGuestPatch\"\r\n| extend ComputerName = tolower(tostring(split(id,'/')[8]))\r\n| extend StartTime = todatetime(properties.startDateTime)\r\n| summarize LastUpdate = max(StartTime) by ComputerName\r\n| extend TimeFromNow = now() - LastUpdate\r\n| extend DaysSinceUpdate = toint(TimeFromNow / 1d)\r\n| extend UpdatedRecently = case(DaysSinceUpdate<30,\"Yes\",\"No\")\r\n| project ComputerName,UpdatedRecently\r\n) on ComputerName\r\n//////////// EXCLUDE LIST ////////////\r\n//////////// EXCLUDE LIST ////////////\r\n| where ComputerName !contains \"EXCLUDED_COMPUTER_1\" and ComputerName !contains \"EXCLUDED_COMPUTER_1\"\r\n//////////// EXCLUDE LIST ////////////\r\n//////////// EXCLUDE LIST ////////////\r\n//////////// FILTERS ////////////\r\n| where (OSType in ({OSType}) and ResourceType in ({ResourceType}) and resourceGroup in ({ResourceGroup}))\r\n//////////// FILTERS ////////////\r\n| project-away ComputerName,ComputerName1\r\n| extend bag = pack(\"ResourceID\",ResourceID,\"ResourceType\",ResourceType,\"ResourceType_OS\",ResourceType_OS,\"location\",location,\"resourceGroup\",resourceGroup,\"OSType\",OSType,\"Status\",Status,\"AMAStatus\",AMAStatus,\"MMAStatus\",MMAStatus,\"MDEStatus\",MDEStatus,\"CTStatus\",CTStatus,\"DAStatus\",DAStatus,\"patchMode\",patchMode,\"assessmentMode\",assessmentMode,\"UpdatedRecently\",UpdatedRecently)\r\n| summarize tostring(make_list(bag))",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "isHiddenWhenLocked": true,
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            }
+                          ],
+                          "style": "pills",
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources"
+                        },
+                        "name": "parameters - 3 - Copy"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "let arg = materialize(datatable(row:string) ['{ARGQuery}']\r\n| project row = todynamic(row)\r\n| mv-expand row\r\n| evaluate bag_unpack(row));\r\narg\r\n| project ResourceID,resourceGroup,location,ResourceType,ResourceType_OS,OSType,Status,AMAStatus,CTStatus,DAStatus,MDEStatus,assessmentMode,patchMode, UpdatedRecently\r\n| extend MDEStatus = case(ResourceType==\"VM Scale Set\",\"n/a\",MDEStatus)\r\n| summarize Count=count(),Online=count(Status in (\"VM running\",\"Connected\",\"\")),AMAStatus=count(AMAStatus == \"Installed\"),CTStatus=count(CTStatus == \"Installed\"),DAStatus=count(DAStatus==\"Installed\"),MDEStatus=count(MDEStatus == \"Installed\"), UpdateSchedule=count(patchMode==\"Customer Managed Schedules\"),UpdateAssessment=count(assessmentMode==\"AutomaticByPlatform\"),UpdatedRecently=count(UpdatedRecently==\"Yes\") by ResourceType_OS\r\n//| summarize Count=count(),MonitoringCount=count(AMAState == \"Connected\" and VMInsightsState==\"Connected\" and ChangeTrackingState==\"Connected\"),SecurityEventConnectedCount=count(SecurityEventState==\"Connected\"), SyslogConnectedCount=count(SyslogState==\"Connected\"),MDConnectedCount=count(MDEState==\"Connected\"),AzureUpdateManager=count(patchMode==\"Customer Managed Schedules\" and assessmentMode==\"AutomaticByPlatform\" and UpdatedRecently==\"Yes\") by ResourceType_OS\r\n",
+                          "size": 3,
+                          "title": "VM Configuration",
+                          "timeContext": {
+                            "durationMs": 86400000
+                          },
+                          "queryType": 0,
+                          "resourceType": "microsoft.operationalinsights/workspaces",
+                          "crossComponentResources": [
+                            "{workspace}"
+                          ],
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "Count",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "Online",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "1",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Count\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "26.8571ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "CTStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Count\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "30ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "DAStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Linux",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Count\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "MDEStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Scale Set",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Count\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "UpdateSchedule",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Scale Set",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Count\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "UpdateAssessment",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Scale Set",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Count\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "UpdatedRecently",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Scale Set",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Count\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ]
+                                }
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "ResourceType_OS",
+                                "label": "Resource Type"
+                              },
+                              {
+                                "columnId": "AMAStatus",
+                                "label": "Azure Monitor Agent"
+                              },
+                              {
+                                "columnId": "CTStatus",
+                                "label": "Change Tracking Extension"
+                              },
+                              {
+                                "columnId": "DAStatus",
+                                "label": "Dependency Agent"
+                              },
+                              {
+                                "columnId": "MDEStatus",
+                                "label": "MDE Extension"
+                              },
+                              {
+                                "columnId": "UpdateSchedule",
+                                "label": "Update Schedule"
+                              },
+                              {
+                                "columnId": "UpdateAssessment",
+                                "label": "Update Assessment"
+                              },
+                              {
+                                "columnId": "UpdatedRecently",
+                                "label": "Updated Recently"
+                              }
+                            ]
+                          },
+                          "sortBy": []
+                        },
+                        "name": "query - 3 - Copy",
+                        "styleSettings": {
+                          "showBorder": true
+                        }
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "let arg = materialize(datatable(row:string) ['{ARGQuery}']\r\n| project row = todynamic(row)\r\n| mv-expand row\r\n| evaluate bag_unpack(row));\r\narg\r\n| project ResourceID,resourceGroup,location,ResourceType,ResourceType_OS,OSType,Status,AMAStatus,CTStatus,MDEStatus,assessmentMode,patchMode, UpdatedRecently\r\n| join kind=leftouter\r\n(\r\n//AMA Heartbeat\r\nHeartbeat\r\n| where TimeGenerated >ago(30d)\r\n| where Category == \"Azure Monitor Agent\"\r\n| where ResourceType =~ \"virtualMachines\" or ResourceType =~ \"virtualMachineScaleSets\" or ResourceType =~ \"machines\"\r\n| summarize LastAMAHeartbeat = arg_max(TimeGenerated,ResourceId,OSType,ResourceType,ResourceGroup,SubscriptionId) by Computer//ResourceId, Computer,OSType\r\n| extend ResourceId = tolower(ResourceId)\r\n| extend ResourceId = case(ResourceType =~ \"virtualMachineScaleSets\", split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer=case(ResourceType=~\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| summarize LastAMAHeartbeat = arg_max(LastAMAHeartbeat,ResourceId,OSType,ResourceType,ResourceGroup,SubscriptionId) by Computer//ResourceId, Computer,OSType\r\n| extend ResourceType=tolower(ResourceType)\r\n| extend ResourceGroup = toupper(ResourceGroup)\r\n| extend Computer = toupper(Computer) \r\n| extend Computer=tostring(split(Computer,\".\")[0])\r\n| extend TimeFromNow = now() - LastAMAHeartbeat\r\n| extend AMAHeartbeat = toint(TimeFromNow / 1s)\r\n| join kind=leftouter\r\n//VMInsights\r\n(\r\nInsightsMetrics\r\n| where TimeGenerated > ago(2d)\r\n| where Origin == \"vm.azm.ms\"\r\n| where Name != \"Heartbeat\"\r\n| summarize LastVMICollection = arg_max(TimeGenerated,*) by _ResourceId\r\n| extend _ResourceId = case(tolower(_ResourceId) contains \"virtualMachineScaleSets\", split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer=case(tolower(_ResourceId) contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| summarize LastVMICollection = max(LastVMICollection) by _ResourceId\r\n| extend TimeFromNow = now() - LastVMICollection\r\n| extend VMICollection = toint(TimeFromNow / 1s)\r\n| extend ResourceId = tolower(_ResourceId)\r\n) on ResourceId\r\n| join kind=leftouter\r\n//Syslog\r\n(\r\nSyslog\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastSyslogCollection = max(TimeGenerated) by Computer,_ResourceId\r\n//get Computer name from resource ID since it could be forwarding for another computer\r\n| extend RID_split = split(_ResourceId,\"/\")\r\n| extend Computer=tostring(RID_split[8])\r\n| extend _ResourceId = case(tolower(_ResourceId) contains \"virtualMachineScaleSets\", split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n//| extend Computer=case(tolower(_ResourceId) contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| summarize LastSyslogCollection = max(LastSyslogCollection) by Computer,_ResourceId\r\n| extend TimeFromNow = now() - LastSyslogCollection\r\n| extend SyslogCollection = toint(TimeFromNow / 1s)\r\n| extend Computer = toupper(Computer)\r\n| extend Computer=tostring(split(Computer,\".\")[0])\r\n| extend ResourceId = tolower(_ResourceId)\r\n) on ResourceId\r\n//Sentinel Data\r\n| join kind=leftouter \r\n(\r\nSecurityEvent\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastSecurityEventCollection = max(TimeGenerated) by Computer,_ResourceId\r\n| extend _ResourceId = case(tolower(_ResourceId) contains \"virtualMachineScaleSets\", split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer=case(tolower(_ResourceId) contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| summarize LastSecurityEventCollection = max(LastSecurityEventCollection) by Computer,_ResourceId\r\n| extend ResourceId = tolower(_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| extend Computer=tostring(split(Computer,\".\")[0])\r\n| extend TimeFromNow = now() - LastSecurityEventCollection\r\n| extend SecurityEventCollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//Change Tracking data\r\n| join kind=leftouter\r\n(\r\nConfigurationData\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastChangeTrackingEvent = max(TimeGenerated) by Computer,_ResourceId\r\n| extend _ResourceId = case(tolower(_ResourceId) contains \"virtualMachineScaleSets\", split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer=case(tolower(_ResourceId) contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| summarize LastChangeTrackingEvent = max(LastChangeTrackingEvent) by Computer,_ResourceId\r\n| extend ResourceId = tolower(_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| extend Computer=tostring(split(Computer,\".\")[0])\r\n| extend TimeFromNow = now() - LastChangeTrackingEvent\r\n| extend ChangeTrackingEventCollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//MDE Data\r\n//| join kind=leftouter\r\n//(\r\n//DeviceInfo\r\n//| where TimeGenerated > ago(4h)\r\n//| where SensorHealthState ==\"Active\"\r\n//| where OnboardingStatus == \"Onboarded\"\r\n//| summarize LastDeviceInfo = max(TimeGenerated) by DeviceName\r\n//| extend Computer = toupper(DeviceName)\r\n//| extend Computer=tostring(split(Computer,\".\")[0])\r\n//| extend TimeFromNow = now() - LastDeviceInfo\r\n//| extend DeviceInfoSeconds = toint(TimeFromNow / 1s)\r\n//) on Computer\r\n//Put it all together\r\n//| extend MDEState = case (LastDeviceInfo>ago(4h) and ResourceType!=\"virtualmachinescalesets\",\"Connected\",\"Not Connected\")\r\n//| extend MDEState = case(ResourceType==\"virtualmachinescalesets\",\"n/a\",MDEState)\r\n| extend AMAState = case (LastAMAHeartbeat>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend VMInsightsState = case (LastVMICollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend SyslogState = case (LastSyslogCollection>ago(30m) and (OSType==\"Linux\"),\"Connected\",\"Not Connected\")\r\n| extend SyslogState = case (OSType==\"Windows\",\"n/a\",SyslogState)\r\n| extend SyslogCollection = case (OSType==\"Windows\",-222,isempty(SyslogCollection),-1, SyslogCollection)\r\n| extend SecurityEventState = case (LastSecurityEventCollection>ago(10m) and (OSType==\"Windows\"),\"Connected\",\"Not Connected\")\r\n| extend SecurityEventState = case (OSType==\"Linux\",\"n/a\",SecurityEventState)\r\n| extend ChangeTrackingState = case (LastChangeTrackingEvent>ago(1d),\"Connected\",\"Not Connected\")\r\n| project Computer,ResourceType,OSType,SubscriptionId,ResourceGroup,ResourceId,AMAState,VMInsightsState,SyslogState,SecurityEventState,ChangeTrackingState,AMAHeartbeat,VMICollection,SyslogCollection,SecurityEventCollection,ChangeTrackingEventCollection\r\n| extend ResourceType = case(ResourceType==\"virtualmachines\",\"Virtual Machine\",ResourceType==\"virtualmachinescalesets\",\"VM Scale Set\",ResourceType=='machines',\"Azure Arc Machine\",ResourceType)\r\n| extend ResourceGroup=tolower(ResourceGroup)\r\n//| where OSType in ({OSType}) and ResourceGroup in ({ResourceGroup}) and ResourceType in ({ResourceType})\r\n//| extend ResourceType = case(ResourceType==\"Virtual Machine\",\"VM\",ResourceType)\r\n//| extend ResourceType_OS=strcat(OSType,\" \",ResourceType)\r\n)\r\non $left.ResourceID == $right.ResourceId\r\n//| extend MDEStatus = case(ResourceType==\"VM Scale Set\",\"n/a\",MDEStatus)\r\n//| where AMAState != \"Connected\" or VMInsightsState != \"Connected\" or SyslogState !in (\"Connected\",\"n/a\") or SecurityEventState !in (\"Connected\",\"n/a\") or ChangeTrackingState != \"Connected\" or MDEState !in (\"Connected\",\"n/a\") or AMAStatus != \"Installed\" or CTStatus!= \"Installed\" or MDEStatus !in (\"Installed\",\"n/a\")\r\n//| project ResourceID,resourceGroup,location,ResourceType,OSType,Status,AMAStatus,CTStatus,MDEStatus,AMAHeartbeat,VMICollection,SyslogCollection,SecurityEventCollection,ChangeTrackingEventCollection,DeviceInfoSeconds,AMAState,MDEState,VMInsightsState,SyslogState,SecurityEventState,ChangeTrackingState, ResourceType_OS\r\n| summarize Count=count(),Online=count(Status in (\"VM running\",\"Connected\",\"\")),AMAConnectedCount=count(AMAState == \"Connected\"),VMInsightsConnectedCount=count(VMInsightsState==\"Connected\"), ChangeTrackingConnectedCount=count(ChangeTrackingState==\"Connected\"),SecurityEventConnectedCount=count(SecurityEventState==\"Connected\"), SyslogConnectedCount=count(SyslogState==\"Connected\") by ResourceType_OS\r\n//| summarize Count=count(),MonitoringCount=count(AMAState == \"Connected\" and VMInsightsState==\"Connected\" and ChangeTrackingState==\"Connected\"),SecurityEventConnectedCount=count(SecurityEventState==\"Connected\"), SyslogConnectedCount=count(SyslogState==\"Connected\"),MDConnectedCount=count(MDEState==\"Connected\"),AzureUpdateManager=count(patchMode==\"Customer Managed Schedules\" and assessmentMode==\"AutomaticByPlatform\" and UpdatedRecently==\"Yes\") by ResourceType_OS\r\n",
+                          "size": 3,
+                          "title": "Data Collection",
+                          "timeContext": {
+                            "durationMs": 86400000
+                          },
+                          "queryType": 0,
+                          "resourceType": "microsoft.operationalinsights/workspaces",
+                          "crossComponentResources": [
+                            "{workspace}"
+                          ],
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "Count",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "Online",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "AMAConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Online\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "VMInsightsConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Online\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "ChangeTrackingConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Online\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "SecurityEventConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Linux",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Online\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "SyslogConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Windows",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Online\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "MDConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Scale Set",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Online\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Online\"]"
+                                    }
+                                  ]
+                                }
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "ResourceType_OS",
+                                "label": "Resource Type"
+                              },
+                              {
+                                "columnId": "AMAConnectedCount",
+                                "label": "Heartbeat"
+                              },
+                              {
+                                "columnId": "VMInsightsConnectedCount",
+                                "label": "VM Insights"
+                              },
+                              {
+                                "columnId": "ChangeTrackingConnectedCount",
+                                "label": "Change Tracking"
+                              },
+                              {
+                                "columnId": "SecurityEventConnectedCount",
+                                "label": "Sentinel"
+                              },
+                              {
+                                "columnId": "SyslogConnectedCount",
+                                "label": "Syslog"
+                              }
+                            ]
+                          },
+                          "sortBy": []
+                        },
+                        "name": "query - 3",
+                        "styleSettings": {
+                          "showBorder": true
+                        }
+                      }
+                    ]
+                  },
+                  "name": "Monitoring Data Group"
+                }
+              ]
+            },
+            "conditionalVisibility": {
+              "parameterName": "selectedTab",
+              "comparison": "isEqualTo",
+              "value": "Overview"
+            },
+            "name": "Overview Group"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": [
+                {
+                  "type": 12,
+                  "content": {
+                    "version": "NotebookGroup/1.0",
+                    "groupType": "editable",
+                    "title": "Monitoring Configuration Compliance (Azure Policy)",
+                    "items": [
+                      {
+                        "type": 9,
+                        "content": {
+                          "version": "KqlParameterItem/1.0",
+                          "crossComponentResources": [
+                            "{subscription}"
+                          ],
+                          "parameters": [
+                            {
+                              "id": "0192e2b5-4683-4347-8f9b-48fff727005a",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "subscription",
+                              "label": "Subscription",
+                              "type": 6,
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "includeAll": true
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "value": "/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40"
+                            },
+                            {
+                              "id": "3314507e-2772-4b8e-81b7-d1efb45f82e1",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "PolicyAssignments",
+                              "label": "Policy Assignments",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "policyresources\r\n| where type == \"microsoft.authorization/policyassignments\"\r\n| extend DisplayName = tostring(properties.displayName)\r\n| extend policyDefinitionId = tostring(properties.policyDefinitionId)\r\n| project name,DisplayName,policyDefinitionId\r\n| join kind=leftouter (\r\npolicyresources\r\n| where type in (\"microsoft.authorization/policydefinitions\",\"microsoft.authorization/policysetdefinitions\")\r\n| extend PolicyDefinitionName = tostring(properties.displayName)\r\n| extend name = tostring(name)\r\n| extend Category = properties.metadata.category\r\n| project PolicyDefinitionName,Category,name,id\r\n) on $left.policyDefinitionId == $right.id\r\n| where Category == \"Monitoring\"\r\n| project name,DisplayName\r\n| order by DisplayName asc",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "71f72d48-b28a-473e-8285-9c47f08e90bc",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "Compliance",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "PolicyResources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend ComplianceState = tostring(properties.complianceState)\r\n| distinct ComplianceState",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ]
+                              },
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "NonCompliant"
+                              ]
+                            }
+                          ],
+                          "style": "pills",
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources"
+                        },
+                        "name": "parameters - 3 - Copy - Copy - Copy"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "PolicyResources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend Resource = tostring(properties.resourceId), policyAssignmentName = tostring(properties.policyAssignmentName), PolicyDefinitionReferenceID = tostring(properties.policyDefinitionReferenceId),ComplianceState = tostring(properties.complianceState)\r\n| where policyAssignmentName in ({PolicyAssignments})\r\n//| where ComplianceState == 'NonCompliant'\r\n| where ComplianceState in ({Compliance})\r\n| project Resource,policyAssignmentName,PolicyDefinitionReferenceID,ComplianceState\r\n| join kind=leftouter (\r\npolicyresources\r\n| where type == \"microsoft.authorization/policyassignments\"\r\n| extend name=tostring(name)\r\n| extend PolicyAssignmentDisplayName = tostring(properties.displayName)\r\n| extend policyDefinitionId = tostring(properties.policyDefinitionId)\r\n//| project name,PolicyAssignmentDisplayName\r\n| where PolicyAssignmentDisplayName contains \"monitor\"\r\n) on $left.policyAssignmentName == $right.name\r\n| where PolicyAssignmentDisplayName contains \"monitor\"\r\n| project Resource, policyAssignmentName,PolicyAssignmentDisplayName,PolicyDefinitionReferenceID,policyDefinitionId,ComplianceState\r\n//| project Resource,DisplayName,PolicyDefinitionReferenceID\r\n| join kind=leftouter (\r\nPolicyResources\r\n| where type in (\"microsoft.authorization/policydefinitions\",\"microsoft.authorization/policysetdefinitions\")\r\n//| where id in (\"/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40/providers/Microsoft.Authorization/policyDefinitions/4a5867f7-bed4-4d69-aa44-30cb18fbe7ec\")\r\n| extend PolicyDisplayName = tostring(properties.displayName)\r\n| project id,PolicyDisplayName\r\n) on $left.policyDefinitionId == $right.id\r\n| extend PolicyReference = case(isempty(PolicyDefinitionReferenceID),PolicyDisplayName,PolicyDefinitionReferenceID)\r\n| project ComplianceState,Resource,PolicyAssignmentDisplayName,PolicyReference//,PolicyDefinitionReferenceID,PolicyDisplayName",
+                          "size": 0,
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources",
+                          "crossComponentResources": [
+                            "{subscription}"
+                          ],
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "ComplianceState",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "Compliant",
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "NonCompliant",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "unknown",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "20.7143ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "Resource",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "21.7143ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "PolicyAssignmentDisplayName",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "45.4286ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "PolicyReference",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "50ch"
+                                }
+                              }
+                            ],
+                            "rowLimit": 1000,
+                            "filter": true,
+                            "sortBy": [
+                              {
+                                "itemKey": "$gen_link_Resource_1",
+                                "sortOrder": 1
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "ComplianceState",
+                                "label": "Compliant"
+                              },
+                              {
+                                "columnId": "Resource",
+                                "label": "Resource"
+                              },
+                              {
+                                "columnId": "PolicyAssignmentDisplayName",
+                                "label": "Policy Assignment"
+                              },
+                              {
+                                "columnId": "PolicyReference",
+                                "label": "Policy Name / Reference"
+                              }
+                            ]
+                          },
+                          "sortBy": [
+                            {
+                              "itemKey": "$gen_link_Resource_1",
+                              "sortOrder": 1
+                            }
+                          ]
+                        },
+                        "name": "query - 0"
+                      }
+                    ]
+                  },
+                  "customWidth": "75",
+                  "name": "PolicyConfigGroup",
+                  "styleSettings": {
+                    "showBorder": true
+                  }
+                },
+                {
+                  "type": 12,
+                  "content": {
+                    "version": "NotebookGroup/1.0",
+                    "groupType": "editable",
+                    "title": "Monitoring Data Collection",
+                    "items": [
+                      {
+                        "type": 9,
+                        "content": {
+                          "version": "KqlParameterItem/1.0",
+                          "parameters": [
+                            {
+                              "id": "3797ff22-02e9-409c-98b2-52332adb2093",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "subscription",
+                              "label": "Subscription",
+                              "type": 6,
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "includeAll": true
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "value": "/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40"
+                            },
+                            {
+                              "id": "e3495651-66ef-44cd-829f-f6e2d91482fe",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "workspace",
+                              "label": "Workspace",
+                              "type": 5,
+                              "isRequired": true,
+                              "query": "resources\r\n| where type =~ 'microsoft.operationalinsights/workspaces'\r\n| project value = id, label = name",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "showDefault": false
+                              },
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": "/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40/resourceGroups/ALA-RG/providers/Microsoft.OperationalInsights/workspaces/ALA-MAIN"
+                            },
+                            {
+                              "id": "601ff709-9c1b-4ea3-aecd-9aea8e0a2dda",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ResourceType",
+                              "label": "Resource Type",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "jsonData": " [\"Virtual Machine\", \"VM Scale Set\",\"Azure Arc Machine\"]",
+                              "defaultValue": "value::all",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "3ceb587b-c08a-4317-8a00-bd63e5e871fd",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "location",
+                              "label": "Location",
+                              "type": 8,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where type == \"microsoft.compute/virtualmachines\"\r\n| distinct location",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "0866f476-e27c-4b82-a070-fac926cacfb8",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "OSType",
+                              "label": "OS Type",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where type == \"microsoft.compute/virtualmachines\"\r\n| extend OSType = tostring(properties.storageProfile.osDisk.osType)\r\n| distinct OSType",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "ce61a86b-e47d-4675-a574-9144475b9dad",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ResourceGroup",
+                              "label": "Resource Group",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where type in (\"microsoft.compute/virtualmachines\",\"microsoft.compute/virtualmachinescalesets\",\"microsoft.hybridcompute/machines\")\r\n| distinct resourceGroup",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "resourceTypeFilter": {
+                                  "microsoft.resources/resourcegroups": true
+                                },
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "b9540fc1-3197-4fd9-aecb-8b52141a6ba0",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "PowerStatus",
+                              "label": "Status",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where type == \"microsoft.compute/virtualmachines\"\r\n| extend PowerStatus = tostring(properties.extended.instanceView.powerState.displayStatus)\r\n| union\r\n(\r\n//Azure Arc machines\r\nresources\r\n| where type == \"microsoft.hybridcompute/machines\"\r\n| extend PowerStatus = tostring(properties.status)\r\n)\r\n| distinct PowerStatus",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "Connected",
+                                "VM running"
+                              ]
+                            },
+                            {
+                              "id": "dcb73aa8-4420-42ab-b793-5b49d2c2d478",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ConfigurationFilter",
+                              "label": "Configuration Filter",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "showDefault": false
+                              },
+                              "jsonData": " [\"Show all VMs\", \"Show all VMs with issues\", \"AMA Not Installed\",\"Dependency Agent Not Installed\", \"Change Tracking Extension Not Installed\", \"MDE Extension Not Installed\", \"Azure Update Manager Issues\"]",
+                              "value": [
+                                "Show all VMs with issues"
+                              ]
+                            },
+                            {
+                              "version": "KqlParameterItem/1.0",
+                              "name": "DataCollectionFilter",
+                              "label": "Data Collection Filter",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "showDefault": false
+                              },
+                              "jsonData": " [\"Show all VMs\", \"Show all VMs with issues\", \"No Heartbeat\",\"No VM Insights Data\", \"No Change Tracking Data\", \"No Syslog Data\", \"No Security Events (Sentinel)\", \"No MDE Data\"]",
+                              "value": [
+                                "Show all VMs with issues"
+                              ],
+                              "id": "75c503e0-10e5-4158-b157-3167a0e310e7"
+                            },
+                            {
+                              "id": "5bc398eb-5855-484c-b251-1898b4bb3fdf",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ARGQuery",
+                              "type": 1,
+                              "query": "//Virtual Machines\r\nresources\r\n| where type == \"microsoft.compute/virtualmachines\"\r\n| extend PowerStatus = tostring(properties.extended.instanceView.powerState.displayStatus),\r\n\tOSType = tostring(properties.storageProfile.osDisk.osType),\r\n    IdentityType = identity.type,\r\n    ComputerName = tolower(name)\r\n| extend ResourceType=\"Virtual Machine\"\r\n| extend patchSettings = iff(properties.storageProfile.osDisk.osType =~ \"windows\", properties.osProfile.windowsConfiguration.patchSettings, properties.osProfile.linuxConfiguration.patchSettings)\r\n| extend patchMode = patchSettings.patchMode\r\n| extend patchMode = case(patchMode =~ 'AutomaticByOS', 'Windows Automatic Updates', patchMode =~ 'ImageDefault', 'Image default', (patchMode =~ 'AutomaticByPlatform' and patchSettings.automaticByPlatformSettings.bypassPlatformSafetyChecksOnUserSchedule == true), 'Customer Managed Schedules', patchMode =~ 'AutomaticByPlatform', 'Azure Managed - Safe Deployment', patchMode)\r\n| extend patchMode=tostring(patchMode)\r\n| extend assessmentMode = tostring(patchSettings.assessmentMode)\r\n| project ComputerName, id, location, resourceGroup, PowerStatus, OSType, IdentityType,ResourceType,patchMode,assessmentMode\r\n    //Virtual Machines - Installed Extensions\r\n    | join kind=leftouter (\r\n    resources\r\n    | where type contains \"microsoft.compute/virtualmachines/extensions\"\r\n    | extend publisher = properties.publisher\r\n    | parse id with * \"/virtualMachines/\" ComputerName \"/\" *\r\n    | extend extensionType = properties.type, \r\n        status = tostring(properties.provisioningState),\r\n        version = properties.typeHandlerVersion,\r\n        ComputerName = tolower(ComputerName)\r\n    | where status in (\"Succeeded\",\"Updating\")\r\n    | summarize InstalledExtensions = make_list(publisher) by ComputerName\r\n    ) on ComputerName\r\n| union\r\n(\r\n//VM Scale Sets\r\nresources\r\n| where type == \"microsoft.compute/virtualmachinescalesets\"\r\n| extend ResourceType=\"VM Scale Set\"\r\n| extend PowerStatus = tostring(properties.extended.instanceView.powerState.displayStatus),\r\n    OSType = tostring(properties.virtualMachineProfile.storageProfile.osDisk.osType),\r\n    IdentityType = identity.type,\r\n    ComputerName = tolower(name)\r\n| project ComputerName, id, location, resourceGroup, PowerStatus, OSType, IdentityType,ResourceType\r\n    //VM Scale Sets - Installed Extensions\r\n    | join kind=leftouter(\r\n    resources\r\n    | where type == \"microsoft.compute/virtualmachinescalesets\"\r\n    | extend ComputerName = tolower(name)\r\n    | mv-expand extensionProfile = properties.virtualMachineProfile.extensionProfile.extensions\r\n    | project ComputerName, extensionName = extensionProfile.properties.publisher\r\n    | extend extensionName=tostring(extensionName)\r\n    | summarize InstalledExtensions = make_list(extensionName) by ComputerName\r\n    ) on ComputerName\r\n)\r\n| union\r\n(\r\n//Azure Arc machines\r\nresources\r\n| where type == \"microsoft.hybridcompute/machines\"\r\n| extend PowerStatus = tostring(properties.status),\r\n\tOSType = tostring(properties.osType),\r\n    IdentityType = identity.type,\r\n    ComputerName = tolower(name)\r\n| extend ResourceType=\"Azure Arc Machine\"\r\n| extend patchSettings = properties.osProfile.windowsConfiguration.patchSettings\r\n| extend assessmentMode = tostring(patchSettings.assessmentMode)\r\n| project ComputerName, id, location, resourceGroup, PowerStatus, OSType, IdentityType,ResourceType,assessmentMode\r\n    //Azure Arc Machines - Installed Extensions\r\n    | join kind = leftouter\r\n    (\r\n    resources\r\n    | where type contains \"microsoft.hybridcompute/machines/extensions\"\r\n    | extend publisher = properties.publisher\r\n        | parse id with * \"/Microsoft.HybridCompute/machines/\" ComputerName \"/\" *\r\n        | extend extensionType = properties.type, \r\n            status = tostring(properties.provisioningState),\r\n            version = properties.typeHandlerVersion,\r\n            ComputerName = tolower(ComputerName)\r\n        | where status in (\"Succeeded\",\"Updating\")\r\n        | summarize InstalledExtensions = make_list(publisher) by ComputerName\r\n    ) on ComputerName\r\n    )\r\n    | extend AMAStatus = case(InstalledExtensions contains \"Microsoft.Azure.Monitor\", \"Installed\", \"Not Installed\")\r\n    | extend MDEStatus = case(InstalledExtensions contains \"Microsoft.Azure.AzureDefenderForServers\", \"Installed\", \"Not Installed\")\r\n    | extend CTStatus = case(InstalledExtensions contains \"Microsoft.Azure.ChangeTrackingAndInventory\", \"Installed\", \"Not Installed\")\r\n    | extend MMAStatus = case(InstalledExtensions contains \"Microsoft.EnterpriseCloud.Monitoring\", \"Installed\", \"Not Installed\")\r\n    | extend DAStatus = case(InstalledExtensions contains \"Microsoft.Azure.Monitoring.DependencyAgent\", \"Installed\", \"Not Installed\")\r\n| extend OSType = case(OSType=~\"windows\",\"Windows\",(case(OSType=~\"linux\",\"Linux\",OSType)))\r\n| project ComputerName, ResourceID = tolower(id),ResourceType,location, resourceGroup, OSType, Status=PowerStatus,AMAStatus,MMAStatus,MDEStatus, CTStatus,DAStatus,patchMode,assessmentMode\r\n| extend ResourceType_OS=strcat(OSType,\" \",ResourceType)\r\n//check to see if update manager has run in last 30 days\r\n| join kind=leftouter\r\n(\r\nmaintenanceresources\r\n| where ['type'] == \"microsoft.maintenance/applyupdates\"\r\n| where properties.maintenanceScope == \"InGuestPatch\"\r\n| extend ComputerName = tolower(tostring(split(id,'/')[8]))\r\n| extend StartTime = todatetime(properties.startDateTime)\r\n| summarize LastUpdate = max(StartTime) by ComputerName\r\n| extend TimeFromNow = now() - LastUpdate\r\n| extend DaysSinceUpdate = toint(TimeFromNow / 1d)\r\n| extend UpdatedRecently = case(DaysSinceUpdate<30,\"Yes\",\"No\")\r\n| project ComputerName,UpdatedRecently\r\n) on ComputerName\r\n//////////// EXCLUDE LIST ////////////\r\n//////////// EXCLUDE LIST ////////////| where ComputerName !contains \"EXCLUDED_COMPUTER_1\" and ComputerName !contains \"EXCLUDED_COMPUTER_1\"\r\n//////////// EXCLUDE LIST ////////////\r\n//////////// EXCLUDE LIST ////////////\r\n//////////// FILTERS ////////////\r\n| where (OSType in ({OSType}) and ResourceType in ({ResourceType}) and resourceGroup in ({ResourceGroup}) and Status in ({PowerStatus},\"\") and location in ({location}))\r\n//////////// FILTERS ////////////\r\n| project-away ComputerName,ComputerName1\r\n| extend bag = pack(\"ResourceID\",ResourceID,\"ResourceType\",ResourceType,\"ResourceType_OS\",ResourceType_OS,\"location\",location,\"resourceGroup\",resourceGroup,\"OSType\",OSType,\"Status\",Status,\"AMAStatus\",AMAStatus,\"MMAStatus\",MMAStatus,\"MDEStatus\",MDEStatus,\"CTStatus\",CTStatus,\"DAStatus\",DAStatus,\"patchMode\",patchMode,\"assessmentMode\",assessmentMode,\"UpdatedRecently\",UpdatedRecently)\r\n| summarize tostring(make_list(bag))",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "isHiddenWhenLocked": true,
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            }
+                          ],
+                          "style": "pills",
+                          "queryType": 0,
+                          "resourceType": "microsoft.operationalinsights/workspaces"
+                        },
+                        "name": "parameters - 3"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "let arg = materialize(datatable(row:string) ['{ARGQuery}']\r\n| project row = todynamic(row)\r\n| mv-expand row\r\n| evaluate bag_unpack(row));\r\narg\r\n| project ResourceID,resourceGroup,location,ResourceType,ResourceType_OS,OSType,Status,AMAStatus,DAStatus,CTStatus,MDEStatus,assessmentMode,patchMode, UpdatedRecently\r\n| extend MDEStatus = case(ResourceType==\"VM Scale Set\",\"n/a\",MDEStatus)\r\n//Exlude depedency agent from Linux\r\n| extend DAStatus = case(OSType==\"Linux\",\"n/a\",DAStatus)\r\n//Exclude Azure Update Manager from Scale Sets\r\n| extend assessmentMode = case(ResourceType==\"VM Scale Set\",\"n/a\",assessmentMode)\r\n| extend patchMode = case(ResourceType==\"VM Scale Set\",\"n/a\",patchMode)\r\n| extend UpdatedRecently = case(ResourceType==\"VM Scale Set\",\"n/a\",UpdatedRecently)\r\n| project ResourceID,resourceGroup,location,ResourceType_OS,Status,AMAStatus,CTStatus,DAStatus,MDEStatus,assessmentMode,patchMode,UpdatedRecently\r\n//only show problems\r\n| where \"Show all VMs\" in ({ConfigurationFilter}) \r\nor (\"Show all VMs with issues\" in ({ConfigurationFilter}) and (AMAStatus !=\"Installed\" or CTStatus!=\"Installed\" or DAStatus!in(\"Installed\",\"n/a\") or MDEStatus!in (\"Installed\",\"n/a\") or assessmentMode!in(\"AutomaticByPlatform\",\"n/a\") or patchMode!in(\"Customer Managed Schedules\",\"n/a\") or UpdatedRecently!in(\"Yes\",\"n/a\"))) \r\nor (\"AMA Not Installed\" in ({ConfigurationFilter}) and AMAStatus !=\"Installed\") \r\nor (\"Dependency Agent Not Installed\" in ({ConfigurationFilter}) and DAStatus!in(\"Installed\",\"n/a\"))\r\nor (\"Change Tracking Extension Not Installed\" in ({ConfigurationFilter}) and CTStatus!=\"Installed\")\r\nor (\"MDE Extension Not Installed\" in ({ConfigurationFilter}) and MDEStatus!in (\"Installed\",\"n/a\"))\r\nor (\"Azure Update Manager Issues\" in ({ConfigurationFilter}) and (assessmentMode!=\"AutomaticByPlatform\" or patchMode!=\"Customer Managed Schedules\" or UpdatedRecently!=\"Yes\"))\r\n\r\n",
+                          "size": 0,
+                          "title": "VM Configuration",
+                          "queryType": 0,
+                          "resourceType": "microsoft.operationalinsights/workspaces",
+                          "crossComponentResources": [
+                            "{workspace}"
+                          ],
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "ResourceID",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "21ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "resourceGroup",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "25.1414ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "location",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "16.1409ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "ResourceType_OS",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "21.2847ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "Status",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "16.7143ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "!=",
+                                      "thresholdValue": "Installed",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "23.9986ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "CTStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "!=",
+                                      "thresholdValue": "Installed",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "19.8557ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "DAStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "n/a",
+                                      "representation": "more",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "!=",
+                                      "thresholdValue": "Installed",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "22ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "MDEStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "n/a",
+                                      "representation": "more",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "!=",
+                                      "thresholdValue": "Installed",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "19ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "assessmentMode",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "n/a",
+                                      "representation": "more",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "!=",
+                                      "thresholdValue": "AutomaticByPlatform",
+                                      "representation": "4",
+                                      "text": "No"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "Yes"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "22.1429ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "patchMode",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "n/a",
+                                      "representation": "more",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "!=",
+                                      "thresholdValue": "Customer Managed Schedules",
+                                      "representation": "4",
+                                      "text": "No"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "Yes"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "22.5704ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "UpdatedRecently",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "n/a",
+                                      "representation": "more",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "!=",
+                                      "thresholdValue": "Yes",
+                                      "representation": "4",
+                                      "text": "No"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "22ch"
+                                }
+                              }
+                            ],
+                            "filter": true,
+                            "sortBy": [
+                              {
+                                "itemKey": "$gen_link_ResourceID_0",
+                                "sortOrder": 1
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "ResourceID",
+                                "label": "Resource"
+                              },
+                              {
+                                "columnId": "resourceGroup",
+                                "label": "Resource Group"
+                              },
+                              {
+                                "columnId": "location",
+                                "label": "Location"
+                              },
+                              {
+                                "columnId": "ResourceType_OS",
+                                "label": "Resource Type"
+                              },
+                              {
+                                "columnId": "Status",
+                                "label": "Status"
+                              },
+                              {
+                                "columnId": "AMAStatus",
+                                "label": "Azure Monitor Agent"
+                              },
+                              {
+                                "columnId": "CTStatus",
+                                "label": "Change Tracking"
+                              },
+                              {
+                                "columnId": "DAStatus",
+                                "label": "Dependency Agent"
+                              },
+                              {
+                                "columnId": "MDEStatus",
+                                "label": "MDE Extension"
+                              },
+                              {
+                                "columnId": "assessmentMode",
+                                "label": "Update Assessment"
+                              },
+                              {
+                                "columnId": "patchMode",
+                                "label": "Update Schedule"
+                              },
+                              {
+                                "columnId": "UpdatedRecently",
+                                "label": "Updated Recently"
+                              }
+                            ]
+                          },
+                          "sortBy": [
+                            {
+                              "itemKey": "$gen_link_ResourceID_0",
+                              "sortOrder": 1
+                            }
+                          ]
+                        },
+                        "name": "query - 3 - Copy",
+                        "styleSettings": {
+                          "showBorder": true
+                        }
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "let arg = materialize(datatable(row:string) ['{ARGQuery}']\r\n| project row = todynamic(row)\r\n| mv-expand row\r\n| evaluate bag_unpack(row));\r\narg\r\n| project ResourceID,resourceGroup,location,ResourceType,ResourceType_OS,OSType,Status,AMAStatus,DAStatus,CTStatus,MDEStatus,assessmentMode,patchMode, UpdatedRecently\r\n| join kind=leftouter\r\n(\r\n//AMA Heartbeat\r\nHeartbeat\r\n| where TimeGenerated >ago(30d)\r\n| where Category == \"Azure Monitor Agent\"\r\n| where ResourceType =~ \"virtualMachines\" or ResourceType =~ \"virtualMachineScaleSets\" or ResourceType =~ \"machines\"\r\n| summarize LastAMAHeartbeat = arg_max(TimeGenerated,ResourceId,OSType,ResourceType,ResourceGroup,SubscriptionId) by Computer//ResourceId, Computer,OSType\r\n| extend ResourceId = tolower(ResourceId)\r\n| extend ResourceId = case(ResourceType =~ \"virtualMachineScaleSets\", split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer=case(ResourceType=~\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| summarize LastAMAHeartbeat = arg_max(LastAMAHeartbeat,ResourceId,OSType,ResourceType,ResourceGroup,SubscriptionId) by Computer//ResourceId, Computer,OSType\r\n| extend ResourceType=tolower(ResourceType)\r\n| extend ResourceGroup = toupper(ResourceGroup)\r\n| extend Computer = toupper(Computer) \r\n| extend Computer=tostring(split(Computer,\".\")[0])\r\n| extend TimeFromNow = now() - LastAMAHeartbeat\r\n| extend AMAHeartbeat = toint(TimeFromNow / 1s)\r\n| join kind=leftouter\r\n//VMInsights\r\n(\r\nInsightsMetrics\r\n| where TimeGenerated > ago(2d)\r\n| where Origin == \"vm.azm.ms\"\r\n| where Name != \"Heartbeat\"\r\n| summarize LastVMICollection = arg_max(TimeGenerated,*) by _ResourceId\r\n| extend _ResourceId = case(tolower(_ResourceId) contains \"virtualMachineScaleSets\", split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer=case(tolower(_ResourceId) contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| summarize LastVMICollection = max(LastVMICollection) by _ResourceId\r\n| extend TimeFromNow = now() - LastVMICollection\r\n| extend VMICollection = toint(TimeFromNow / 1s)\r\n| extend ResourceId = tolower(_ResourceId)\r\n) on ResourceId\r\n| join kind=leftouter\r\n//Syslog\r\n(\r\nSyslog\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastSyslogCollection = max(TimeGenerated) by Computer,_ResourceId\r\n//get Computer name from resource ID since it could be forwarding for another computer\r\n| extend RID_split = split(_ResourceId,\"/\")\r\n| extend Computer=tostring(RID_split[8])\r\n| extend _ResourceId = case(tolower(_ResourceId) contains \"virtualMachineScaleSets\", split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n//| extend Computer=case(tolower(_ResourceId) contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| summarize LastSyslogCollection = max(LastSyslogCollection) by Computer,_ResourceId\r\n| extend TimeFromNow = now() - LastSyslogCollection\r\n| extend SyslogCollection = toint(TimeFromNow / 1s)\r\n| extend Computer = toupper(Computer)\r\n| extend Computer=tostring(split(Computer,\".\")[0])\r\n| extend ResourceId = tolower(_ResourceId)\r\n) on ResourceId\r\n//Sentinel Data\r\n| join kind=leftouter \r\n(\r\nSecurityEvent\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastSecurityEventCollection = max(TimeGenerated) by Computer,_ResourceId\r\n| extend _ResourceId = case(tolower(_ResourceId) contains \"virtualMachineScaleSets\", split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer=case(tolower(_ResourceId) contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| summarize LastSecurityEventCollection = max(LastSecurityEventCollection) by Computer,_ResourceId\r\n| extend ResourceId = tolower(_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| extend Computer=tostring(split(Computer,\".\")[0])\r\n| extend TimeFromNow = now() - LastSecurityEventCollection\r\n| extend SecurityEventCollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//Change Tracking data\r\n| join kind=leftouter\r\n(\r\nConfigurationData\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastChangeTrackingEvent = max(TimeGenerated) by Computer,_ResourceId\r\n| extend _ResourceId = case(tolower(_ResourceId) contains \"virtualMachineScaleSets\", split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer=case(tolower(_ResourceId) contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| summarize LastChangeTrackingEvent = max(LastChangeTrackingEvent) by Computer,_ResourceId\r\n| extend ResourceId = tolower(_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| extend Computer=tostring(split(Computer,\".\")[0])\r\n| extend TimeFromNow = now() - LastChangeTrackingEvent\r\n| extend ChangeTrackingEventCollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//MDE Data\r\n//| join kind=leftouter\r\n//(\r\n//DeviceInfo\r\n//| where TimeGenerated > ago(4h)\r\n//| where SensorHealthState ==\"Active\"\r\n//| where OnboardingStatus == \"Onboarded\"\r\n//| summarize LastDeviceInfo = max(TimeGenerated) by DeviceName\r\n//| extend Computer = toupper(DeviceName)\r\n//| extend Computer=tostring(split(Computer,\".\")[0])\r\n//| extend TimeFromNow = now() - LastDeviceInfo\r\n//| extend DeviceInfoSeconds = toint(TimeFromNow / 1s)\r\n//) on Computer\r\n//Put it all together\r\n//| extend MDEState = case (LastDeviceInfo>ago(4h) and ResourceType!=\"virtualmachinescalesets\",\"Connected\",\"Not Connected\")\r\n//| extend MDEState = case(ResourceType==\"virtualmachinescalesets\",\"n/a\",MDEState)\r\n| extend AMAState = case (LastAMAHeartbeat>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend AMAState = case (AMAState!=\"Connected\",\"Not Connected\",AMAState)\r\n| extend VMInsightsState = case (LastVMICollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend SyslogState = case (LastSyslogCollection>ago(30m) and (OSType==\"Linux\"),\"Connected\",\"Not Connected\")\r\n| extend SyslogState = case (OSType==\"Windows\",\"n/a\",SyslogState)\r\n| extend SyslogCollection = case (OSType==\"Windows\",-222,isempty(SyslogCollection),-1, SyslogCollection)\r\n| extend SecurityEventState = case (LastSecurityEventCollection>ago(10m) and (OSType==\"Windows\"),\"Connected\",\"Not Connected\")\r\n| extend SecurityEventState = case (OSType==\"Linux\",\"n/a\",SecurityEventState)\r\n| extend ChangeTrackingState = case (LastChangeTrackingEvent>ago(1d),\"Connected\",\"Not Connected\")\r\n//| project Computer,ResourceType,OSType,SubscriptionId,ResourceGroup,ResourceId,AMAState,VMInsightsState,SyslogState,SecurityEventState,ChangeTrackingState,MDEState,AMAHeartbeat,VMICollection,SyslogCollection,SecurityEventCollection,ChangeTrackingEventCollection,DeviceInfoSeconds\r\n| project Computer,ResourceType,OSType,SubscriptionId,ResourceGroup,ResourceId,AMAState,VMInsightsState,SyslogState,SecurityEventState,ChangeTrackingState,AMAHeartbeat,VMICollection,SyslogCollection,SecurityEventCollection,ChangeTrackingEventCollection\r\n| extend ResourceType = case(ResourceType==\"virtualmachines\",\"Virtual Machine\",ResourceType==\"virtualmachinescalesets\",\"VM Scale Set\",ResourceType=='machines',\"Azure Arc Machine\",ResourceType)\r\n| extend ResourceGroup=tolower(ResourceGroup)\r\n)\r\non $left.ResourceID == $right.ResourceId\r\n//| extend MDEStatus = case(ResourceType==\"VM Scale Set\",\"n/a\",MDEStatus)\r\n//| extend MDEState = case (isempty(MDEState),\"Not Connected\",MDEState)\r\n//| extend MDEState = case(ResourceType==\"VM Scale Set\",\"n/a\",MDEState)\r\n| extend AMAState = case (isempty(AMAState),\"Not Connected\",AMAState)\r\n| extend VMInsightsState = case (isempty(VMInsightsState),\"Not Connected\",VMInsightsState)\r\n| extend ChangeTrackingState = case (isempty(ChangeTrackingState),\"Not Connected\",ChangeTrackingState)\r\n| extend SyslogState = case (isempty(SyslogState),\"Not Connected\",SyslogState)\r\n| extend SyslogState = case (OSType==\"Windows\",\"n/a\",SyslogState)\r\n| extend SecurityEventState = case (isempty(SecurityEventState),\"Not Connected\",SecurityEventState)\r\n| extend SecurityEventState = case (OSType==\"Linux\",\"n/a\",SecurityEventState)\r\n\r\n//| project ResourceID,resourceGroup,location,ResourceType_OS,Status,AMAHeartbeat,VMICollection,SyslogCollection,SecurityEventCollection,ChangeTrackingEventCollection,DeviceInfoSeconds,AMAState,VMInsightsState,SyslogState,SecurityEventState,ChangeTrackingState,MDEState\r\n| project ResourceID,resourceGroup,location,ResourceType_OS,Status,AMAHeartbeat,VMICollection,SyslogCollection,SecurityEventCollection,ChangeTrackingEventCollection,AMAState,VMInsightsState,SyslogState,SecurityEventState,ChangeTrackingState\r\n| where \"Show all VMs\" in ({DataCollectionFilter}) \r\n//or (\"Show all VMs with issues\" in ({DataCollectionFilter}) and (AMAState ==\"Not Connected\" or VMInsightsState==\"Not Connected\" or SyslogState==\"Not Connected\" or MDEState==\"Not Connected\" or SecurityEventState==\"Not Connected\" or ChangeTrackingState == \"Not Connected\")) \r\nor (\"Show all VMs with issues\" in ({DataCollectionFilter}) and (AMAState ==\"Not Connected\" or VMInsightsState==\"Not Connected\" or SyslogState==\"Not Connected\" or SecurityEventState==\"Not Connected\" or ChangeTrackingState == \"Not Connected\")) \r\nor (\"No Heartbeat\" in ({DataCollectionFilter}) and AMAState == \"Not Connected\") \r\nor (\"No VM Insights Data\" in ({DataCollectionFilter}) and VMInsightsState == \"Not Connected\")\r\nor (\"No Change Tracking Data\" in ({DataCollectionFilter}) and ChangeTrackingState == \"Not Connected\")\r\nor (\"No Syslog Data\" in ({DataCollectionFilter}) and SyslogState == \"Not Connected\")\r\nor (\"No Security Events (Sentinel)\" in ({DataCollectionFilter}) and SecurityEventState == \"Not Connected\")\r\n//or (\"No MDE Data\" in ({DataCollectionFilter}) and MDEState == \"Not Connected\")\r\n\r\n",
+                          "size": 0,
+                          "title": "Data Collection",
+                          "queryType": 0,
+                          "resourceType": "microsoft.operationalinsights/workspaces",
+                          "crossComponentResources": [
+                            "{workspace}"
+                          ],
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "ResourceID",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "19.8551ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "resourceGroup",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "27.2847ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "location",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "15.7123ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "ResourceType_OS",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "29ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "Status",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "16ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAHeartbeat",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "sourceColumn": "AMAState",
+                                      "operator": "==",
+                                      "thresholdValue": "Not Connected",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "16.4266ch"
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "VMICollection",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "sourceColumn": "VMInsightsState",
+                                      "operator": "==",
+                                      "thresholdValue": "Not Connected",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "16.9996ch"
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "SyslogCollection",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Windows",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "sourceColumn": "SyslogState",
+                                      "operator": "==",
+                                      "thresholdValue": "Not Connected",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "sourceColumn": "SyslogState",
+                                      "operator": "==",
+                                      "thresholdValue": "n/a",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "14.5ch"
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "SecurityEventCollection",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Linux",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "sourceColumn": "SecurityEventState",
+                                      "operator": "==",
+                                      "thresholdValue": "Not Connected",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "18.8557ch"
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "ChangeTrackingEventCollection",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "sourceColumn": "ChangeTrackingState",
+                                      "operator": "==",
+                                      "thresholdValue": "Not Connected",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "19.7143ch"
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "DeviceInfoSeconds",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "sourceColumn": "ResourceType_OS",
+                                      "operator": "contains",
+                                      "thresholdValue": "Scale Set",
+                                      "representation": "more",
+                                      "text": "n/a"
+                                    },
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "sourceColumn": "MDEState",
+                                      "operator": "==",
+                                      "thresholdValue": "Not Connected",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "14.2837ch"
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "VMInsightsState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "SyslogState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "SecurityEventState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "ChangeTrackingState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "MDEState",
+                                "formatter": 5
+                              }
+                            ],
+                            "filter": true,
+                            "sortBy": [
+                              {
+                                "itemKey": "$gen_link_ResourceID_0",
+                                "sortOrder": 1
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "ResourceID",
+                                "label": "Resource"
+                              },
+                              {
+                                "columnId": "resourceGroup",
+                                "label": "Resource Group"
+                              },
+                              {
+                                "columnId": "location",
+                                "label": "Location"
+                              },
+                              {
+                                "columnId": "ResourceType_OS",
+                                "label": "Resource Type"
+                              },
+                              {
+                                "columnId": "Status",
+                                "label": "Status"
+                              },
+                              {
+                                "columnId": "AMAHeartbeat",
+                                "label": "Heartbeat"
+                              },
+                              {
+                                "columnId": "VMICollection",
+                                "label": "VM Insights"
+                              },
+                              {
+                                "columnId": "SyslogCollection",
+                                "label": "Syslog"
+                              },
+                              {
+                                "columnId": "SecurityEventCollection",
+                                "label": "Security Events"
+                              },
+                              {
+                                "columnId": "ChangeTrackingEventCollection",
+                                "label": "Change Tracking"
+                              }
+                            ]
+                          },
+                          "sortBy": [
+                            {
+                              "itemKey": "$gen_link_ResourceID_0",
+                              "sortOrder": 1
+                            }
+                          ]
+                        },
+                        "name": "query - 3",
+                        "styleSettings": {
+                          "showBorder": true
+                        }
+                      }
+                    ]
+                  },
+                  "name": "VMsBySubscriptionGroup",
+                  "styleSettings": {
+                    "showBorder": true
+                  }
+                }
+              ]
+            },
+            "conditionalVisibility": {
+              "parameterName": "selectedTab",
+              "comparison": "isEqualTo",
+              "value": "Details-NEW"
+            },
+            "name": "Details-NEW Group"
+          }
+        ]
+      },
+      "name": "VM_Group"
+    }
+  ],
+  "fallbackResourceIds": [
+    "Azure Monitor"
+  ],
+  "fromTemplateId": "community-Workbooks/Azure Monitor - Agents/Overview",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

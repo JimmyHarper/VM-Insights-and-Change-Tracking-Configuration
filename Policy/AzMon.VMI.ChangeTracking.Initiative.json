@@ -1,0 +1,500 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "resources": [
+        {
+            "type": "Microsoft.Authorization/policySetDefinitions",
+            "name": "AzMon.VMI.ChangeTracking",
+            "apiVersion": "2019-09-01",
+            "Properties": {
+                "Description": "",
+                "DisplayName": "Azure Monitor: VM Insights and Change Tracking Configuration",
+                "Metadata": {
+                    "category": "Monitoring"
+                },
+                "Parameters": {
+                    "Effect": {
+                        "type": "string",
+                        "metadata": {
+                            "displayName": "Effect",
+                            "description": null
+                        },
+                        "allowedValues": [
+                            "DeployIfNotExists",
+                            "Disabled"
+                        ],
+                        "defaultValue": "DeployIfNotExists"
+                    },
+                    "VM Insights DCR": {
+                        "type": "string",
+                        "metadata": {
+                            "displayName": "VM Insights DCR",
+                            "description": null
+                        },
+                        "defaultValue": "VM_INSIGHTS_DCR_ID"
+                    },
+                    "Additional Linux VM Images": {
+                        "type": "array",
+                        "metadata": {
+                            "displayName": "Additional Linux VM Images",
+                            "description": null
+                        },
+                        "defaultValue": []
+                    },
+                    "Additional Windows VM Images": {
+                        "type": "array",
+                        "metadata": {
+                            "displayName": "Additional Windows VM Images",
+                            "description": null
+                        },
+                        "defaultValue": []
+                    },
+                    "Scope Windows VMs to supported OS": {
+                        "type": "boolean",
+                        "metadata": {
+                            "displayName": "Scope Windows VMs to supported OS",
+                            "description": null
+                        },
+                        "defaultValue": true
+                    },
+                    "Scope Linux VMs to supported OS": {
+                        "type": "boolean",
+                        "metadata": {
+                            "displayName": "Scope Linux VMs to supported OS",
+                            "description": null
+                        },
+                        "defaultValue": true
+                    },
+                    "Scope Linux VM Scale Sets to supported OS": {
+                        "type": "boolean",
+                        "metadata": {
+                            "displayName": "Scope Linux VM Scale Sets to supported OS",
+                            "description": null
+                        },
+                        "defaultValue": true
+                    },
+                    "Scope Windows VM Scale Sets to supported OS": {
+                        "type": "boolean",
+                        "metadata": {
+                            "displayName": "Scope Windows VM Scale Sets to supported OS",
+                            "description": null
+                        },
+                        "defaultValue": true
+                    },
+                    "Change Tracking DCR": {
+                        "type": "string",
+                        "metadata": {
+                            "displayName": "Change Tracking DCR"
+                        },
+                        "defaultValue": "CHANGE_TRACKING_DCR_ID"
+                    }
+                },
+                "PolicyDefinitionGroups": [
+                    {
+                        "name": "Windows VM",
+                        "displayName": "Windows VM"
+                    },
+                    {
+                        "name": "Linux VM",
+                        "displayName": "Linux VM"
+                    },
+                    {
+                        "name": "Windows VM Scale Set",
+                        "displayName": "Windows VM Scale Set"
+                    },
+                    {
+                        "name": "Linux VM Scale Set",
+                        "displayName": "Linux VM Scale Set"
+                    }
+                ],
+                "PolicyDefinitions": [
+                    {
+                        "policyDefinitionReferenceId": "Windows VM Scale Set - Dependency Agent",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.ScaleSet.DependencyAgent')]",
+                        "parameters": {
+                            "listOfImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            },
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VM Scale Sets to supported OS')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Windows VM - Dependency Agent",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.DependencyAgent')]",
+                        "parameters": {
+                            "listOfImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            },
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VMs to supported OS')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM - Dependency Agent",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VM.DependencyAgent')]",
+                        "parameters": {
+                            "listOfImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            },
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VMs to supported OS')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM Scale Set - Dependency Agent",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VMScaleSet.DependencyAgent')]",
+                        "parameters": {
+                            "listOfImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            },
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VM Scale Sets to supported OS')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Windows VM - VM Insights Data Collection Rule",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.DCRa')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VMs to supported OS')]"
+                            },
+                            "listOfWindowsImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            },
+                            "dcrResourceId": {
+                                "value": "[[parameters('VM Insights DCR')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM - VM Insights Data Collection Rule",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VM.DCRa')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VMs to supported OS')]"
+                            },
+                            "listOfLinuxImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            },
+                            "dcrResourceId": {
+                                "value": "[[parameters('VM Insights DCR')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM Scale Set - VM Insights Data Collection Rule",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VMScaleSet.DCRa')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VM Scale Sets to supported OS')]"
+                            },
+                            "listOfLinuxImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            },
+                            "dcrResourceId": {
+                                "value": "[[parameters('VM Insights DCR')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Windows VM Scale Set - VM Insights Data Collection Rule",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VMScaleSet.DCRa')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VM Scale Sets to supported OS')]"
+                            },
+                            "listOfWindowsImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            },
+                            "dcrResourceId": {
+                                "value": "[[parameters('VM Insights DCR')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Windows VM Scale Set - Azure Monitor Agent",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VMScaleSet.AzureMonitorAgent.SystemAssignedId')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VM Scale Sets to supported OS')]"
+                            },
+                            "listOfWindowsImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM - Azure Monitor Agent",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VM.AzureMonitorAgent.SystemAssignedIdentity')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VMs to supported OS')]"
+                            },
+                            "listOfLinuxImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Windows VM - Azure Monitor Agent",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.AzureMonitorAgent.SystemAssignedIdentity')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VMs to supported OS')]"
+                            },
+                            "listOfWindowsImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM Scale Set - Azure Monitor Agent",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VMScaleSet.AzureMonitorAgent.SystemAssignedIdentity')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VM Scale Sets to supported OS')]"
+                            },
+                            "listOfLinuxImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM Scale Set - Change Tracking Extension",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VMScaleSet.ChangeTracking.Extension')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VM Scale Sets to supported OS')]"
+                            },
+                            "listOfLinuxImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM - Change Tracking Extension",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VM.ChangeTracking.Extension')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VMs to supported OS')]"
+                            },
+                            "listOfLinuxImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Windows VM - Change Tracking Extension",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.ChangeTracking.Extension')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VMs to supported OS')]"
+                            },
+                            "listOfWindowsImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Windows VM Scale Set - Change Tracking Extension",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VMScaleSet.ChangeTracking.Extension')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VM Scale Sets to supported OS')]"
+                            },
+                            "listOfWindowsImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM Scale Set - Change Tracking Data Collection Rule",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VMScaleSet.DCRa')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VM Scale Sets to supported OS')]"
+                            },
+                            "listOfLinuxImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            },
+                            "dcrResourceId": {
+                                "value": "[[parameters('Change Tracking DCR')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Windows VM Scale Set - Change Tracking Data Collection Rule",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VMScaleSet.DCRa')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VM Scale Sets to supported OS')]"
+                            },
+                            "listOfWindowsImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            },
+                            "dcrResourceId": {
+                                "value": "[[parameters('Change Tracking DCR')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM Scale Set"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Windows VM - Change Tracking Data Collection Rule",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.DCRa')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Windows VMs to supported OS')]"
+                            },
+                            "listOfWindowsImageIdToInclude": {
+                                "value": "[[parameters('Additional Windows VM Images')]"
+                            },
+                            "dcrResourceId": {
+                                "value": "[[parameters('Change Tracking DCR')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Windows VM"
+                        ]
+                    },
+                    {
+                        "policyDefinitionReferenceId": "Linux VM - Change Tracking Data Collection Rule",
+                        "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Linux.VM.DCRa')]",
+                        "parameters": {
+                            "effect": {
+                                "value": "[[parameters('Effect')]"
+                            },
+                            "scopeToSupportedImages": {
+                                "value": "[[parameters('Scope Linux VMs to supported OS')]"
+                            },
+                            "listOfLinuxImageIdToInclude": {
+                                "value": "[[parameters('Additional Linux VM Images')]"
+                            },
+                            "dcrResourceId": {
+                                "value": "[[parameters('Change Tracking DCR')]"
+                            }
+                        },
+                        "groupNames": [
+                            "Linux VM"
+                        ]
+                    }
+                ],
+                "PolicyType": "Custom"
+            }
+        }
+    ]
+}
